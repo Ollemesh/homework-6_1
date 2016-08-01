@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>Document</title>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/handlebars.js/4.0.5/handlebars.min.js"></script>
+</head>
+<body>
+	<div id="container" tabindex="1" style="display:inline-block">
+		<div>
+			<div>Enter the city</div>
+			<input type="text" id="cityField">
+		</div>
+		<div id="dropdown" style="display:none; border:1px solid black;"></div>
+	</div>
+
+	<script id="cityPoint" type="text/x-handlebars-template">
+		{{#each suitableCities}}
+			<div>{{this}}</div>
+		{{/each}}
+	</script>
+
+	<script>
+	let cities = [],
+		searchWord = '',
+		suitableCities = [];
+// Функция для получения массива объектов городов
+	function getAjax(url) { 
+		return new Promise((resolve, reject) => {
+			let xhr = new XMLHttpRequest();
+			xhr.open('get', url);
+			xhr.addEventListener('load', () => {
+				resolve(xhr.response);
+			});
+			xhr.addEventListener('error', () => {
+				reject();
+			});
+			xhr.send();
+		});
+	};
+//Функция для получения сортированного масисва городов из массива объектов
+	function getSortedCitiesNames(array) {
+		return array.map((object)=>object.name).sort();
+	};
+//Функция для применения в методе filter. Возвращает true для имен городов, 
+//первые буквы которых свыпадают с буквами, введенными пользователем в input
+	function isSuitable(city, index, arr) {
+		if(!searchWord) return true; //Если пользователь стер значение input, увидим полный список городов
+		searchWord = searchWord[0].toUpperCase() + searchWord.slice(1);
+		for(let i = 0; i < searchWord.length; i++) {
+			if( city[i] === searchWord[i] ) continue; 
+			else return false;
+		}
+		return true;
+	};
+//Функция возвращает массив городов, подходящих под введенное в input значение
+	function getSuitableCities(e) {
+		if(e) searchWord += e.key; //при нажатии на backSpace, функция вызывается буз аргумента
+		return cities.filter(isSuitable);
+	};
+//Функция, генерирующая всплывающий список городов
+	function showDropDown() {
+		while (dropdown.lastChild) {
+			dropdown.removeChild(dropdown.lastChild);
+		}
+//_______________________________________________ШАБЛОНИЗАТОР ТУТ_______________________________________
+		let source = document.querySelector('#cityPoint').innerHTML;
+		let templateFn = Handlebars.compile(source);
+		let template = templateFn({suitableCities: suitableCities});
+		dropdown.innerHTML = template;
+
+		dropdown.style.display = 'inline-block';
+		dropdown.style.width = cityField.clientWidth+'px';
+	};
+//Функция, показывающая требуемый список
+	function showSuitableCities(e) {
+		suitableCities = getSuitableCities(e);
+		showDropDown();
+	};
+// Для выбора города кликом на список
+	function selectCity(e) {
+		cityField.value = e.target.innerText;
+	};
+// Для подсцветки города наведением на список
+	function markDiv(e) {
+		e.target.style.backgroundColor = 'grey';
+	};
+	function unMarkDiv(e) {
+		e.target.style.backgroundColor = '';
+	};
+// Для скрывания списка городов при потере фокуса
+	function hideSuitableCities() {
+		dropdown.style.display = 'none';
+	}
+// Посылаем запрос, получаем массив городов
+	getAjax('https://raw.githubusercontent.com/smelukov/citiesTest/master/cities.json')
+	.then((response) => {
+		console.log('GOT ANSWER');
+		cities = getSortedCitiesNames(JSON.parse(response));
+	},
+	() => {
+		console.log('все сломалось, выпей водочки');
+	});
+//Навешиваем обработчики
+	cityField.addEventListener('keypress', showSuitableCities);
+	container.addEventListener('blur', hideSuitableCities);
+// Небольшой костыльяно, чтобы работало обновление списка при нажатии BackSpace
+	cityField.addEventListener('keydown', (e) => {
+		if(e.keyCode === 8) {
+			searchWord = searchWord.slice(0, searchWord.length - 1);
+			showSuitableCities();
+		}
+	});
+	dropdown.addEventListener('click', selectCity);
+	dropdown.addEventListener('mouseover', markDiv);
+	dropdown.addEventListener('mouseout', unMarkDiv);
+	</script>
+</body>
+</html>
